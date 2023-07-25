@@ -1,0 +1,28 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "run",
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always"
+			},
+			"label": "run"
+		},
+		{
+            "type": "cargo",
+            "command": "run",
+            "args": ["--target", "wasm32-unknown-unknown", "--release"],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": "none",
+            "label": "wasmrun"
+        },
+	]
+}

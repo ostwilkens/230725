@@ -1,0 +1,18 @@
+[
+    {
+        "key": "ctrl+r",
+        "command": "runCommands",
+        "args": {
+            "commands": [
+                {
+                    "command": "workbench.action.tasks.terminate",
+                    "args": "terminateAll"
+                },
+                {
+                    "command": "workbench.action.tasks.runTask",
+                    "args": "task": "run"
+                }
+            ]
+        }
+    }
+]

@@ -1,0 +1,47 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: write
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Copy assets
+        run: cp -r ./assets ./dist/assets
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2023-07-09
+          target: wasm32-unknown-unknown
+        
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target wasm32-unknown-unknown
+      
+      - name: Install wasm-bindgen
+        run: cargo install --version 0.2.87 -f wasm-bindgen-cli
+
+      - name: Run wasm-bindgen
+        run: wasm-bindgen --out-name game --out-dir ./dist/ --target web ./target/wasm32-unknown-unknown/release/game.wasm
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: web
