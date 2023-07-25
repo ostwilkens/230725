@@ -1,5 +1,9 @@
 use bevy::{
-    app::AppExit, math::vec3, prelude::*, render::camera::ScalingMode, sprite::MaterialMesh2dBundle,
+    app::AppExit,
+    math::{vec2, vec3},
+    prelude::*,
+    render::camera::ScalingMode,
+    sprite::MaterialMesh2dBundle,
 };
 use bevy_rapier2d::prelude::*;
 use bevy_rapier_collider_gen::*;
@@ -16,18 +20,13 @@ fn main() {
         }))
         .add_state::<GameState>()
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
-        .add_plugins(RapierDebugRenderPlugin::default())
-        // .add_systems(
-        //     Update,
-        //     (
-        //     ),
-        // )
+        // .add_plugins(RapierDebugRenderPlugin::default())
         .insert_resource(ClearColor(Color::rgb(0.2, 0.2, 0.2)))
         .add_systems(Startup, setup)
-        .add_systems(Update, (exit_on_esc,))
+        .add_systems(Update, (exit_on_esc, arrow_keys_apply_force))
         .add_systems(
             Update,
-            generate_collider.run_if(in_state(GameState::Loading)),
+            generate_map_collider.run_if(in_state(GameState::Loading)),
         )
         .run();
 }
@@ -50,50 +49,73 @@ struct MapImageHandle {
 
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
     commands.spawn(Camera2dBundle {
         projection: OrthographicProjection {
-            scaling_mode: ScalingMode::WindowSize(1.0),
+            scaling_mode: ScalingMode::AutoMin {
+                min_width: 512.0,
+                min_height: 512.0,
+            },
             ..default()
         },
         ..default()
     });
 
-    // commands
-    //     .spawn(Collider::cuboid(500.0, 50.0))
-    //     .insert(TransformBundle::from(Transform::from_xyz(0.0, -100.0, 0.0)));
-
-    // commands.spawn((
-    //     Player,
-    // ))
-    // .insert(MaterialMesh2dBundle {
-    //     mesh: meshes.add(shape::Circle::new(15.).into()).into(),
-    //     material: materials.add(Color::rgb(0.2, 0.4, 0.7).into()),
-    //     transform: Transform::from_translation(vec3(0.0, 0.0, 0.0)),
-    //     ..Default::default()
-    // });
-
-    commands.insert_resource(MapImageHandle { 
+    commands.insert_resource(MapImageHandle {
         collider_image: asset_server.load("col.png"),
         visual_image: asset_server.load("map.png"),
     });
 }
 
-fn generate_collider(
-    mut image_assets: ResMut<Assets<Image>>,
+fn arrow_keys_apply_force(
+    mut commands: Commands,
+    keyboard_input: Res<Input<KeyCode>>,
+    q_player: Query<Entity, With<Player>>,
+    time: Res<Time>,
+) {
+    for entity in q_player.iter() {
+        let mut impulse = vec2(0.0, 0.0);
+        let mut torque_impulse = 0.0;
+
+        if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A) {
+            torque_impulse += time.delta_seconds() * 0.02;
+        }
+        if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D) {
+            torque_impulse -= time.delta_seconds() * 0.02;
+        }
+
+        if keyboard_input.pressed(KeyCode::Space)
+            || keyboard_input.pressed(KeyCode::W)
+            || keyboard_input.pressed(KeyCode::Up)
+        {
+            impulse = Vec2::new(0.0, time.delta_seconds() * 10.0);
+        }
+
+        if impulse != Vec2::ZERO || torque_impulse != 0.0 {
+            commands.entity(entity).insert(ExternalImpulse {
+                impulse: impulse,
+                torque_impulse: torque_impulse,
+            });
+        }
+    }
+}
+
+fn generate_map_collider(
+    image_assets: ResMut<Assets<Image>>,
     map_image_handle: Option<Res<MapImageHandle>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
+    asset_server: Res<AssetServer>,
 ) {
     if let Some(map_image_handle) = map_image_handle {
         if let Some(collider_image) = image_assets.get(&map_image_handle.collider_image.clone()) {
-            let colliders = multi_convex_polyline_collider_translated(collider_image);
+            let colliders = multi_polyline_collider_translated(collider_image);
+
+            // spawn map colliders
             for collider in colliders {
                 commands.spawn((
-                    collider.unwrap(),
+                    collider,
                     RigidBody::Fixed,
                     SpriteBundle {
                         texture: map_image_handle.visual_image.clone(),
@@ -102,7 +124,24 @@ fn generate_collider(
                     },
                 ));
             }
-    
+
+            // spawn player
+            commands
+                .spawn(Player)
+                .insert(RigidBody::Dynamic)
+                .insert(Collider::ball(15.0))
+                .insert(Restitution::coefficient(0.7))
+                .insert(Friction::new(5.0))
+                .insert(SpriteBundle {
+                    texture: asset_server.load("player.png"),
+                    transform: Transform::from_xyz(0.0, 20.0, 1.0),
+                    sprite: Sprite {
+                        custom_size: Some(vec2(30.0, 30.0)),
+                        ..default()
+                    },
+                    ..default()
+                });
+
             next_state.set(GameState::Playing);
         }
     }
