@@ -20,6 +20,8 @@ opt-level = 3
 [dependencies]
 rand = "0.8.5"
 bevy = { version = "0.11", features = ["jpeg"] }
+bevy_rapier2d = "0.22.0"
+bevy_rapier_collider_gen = { git = "https://github.com/CyberTea0X/bevy_rapier_collider_gen.git", branch = "main" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 bevy = { version = "0.11", features = ["dynamic_linking"] }

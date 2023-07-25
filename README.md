@@ -1,3 +1,8 @@
 todo:
-- offline web build deploy
-- basic states
+
+
+3d first person platformer
+
+angry birds thing
+
+roping game
